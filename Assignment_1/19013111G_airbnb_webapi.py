@@ -15,7 +15,7 @@ def my_student_id():
 
 # (b) Get all reviews
 @app.route('/airbnb/reviews/', methods=['GET'])
-def get_reviews():
+def get_all_reviews():
 
     # create connection
     conn = sqlite3.connect("airbnb.db")
@@ -23,22 +23,29 @@ def get_reviews():
     # create a cursor object
     db = conn.cursor()
 
-    # get total review count
-    query_1 = "SELECT count(id) FROM review"
-    result_1 = db.execute(query_1).fetchall()
+    if 'start' in request.args.keys() and 'end' in request.args.keys():
+        start = request.args['start']
+        end = request.args['end']
 
-    count = []
-    for row in result_1:
-        count.append(row)
+        # get reviews information
+        query_1 = """
+                  SELECT accommodation_id, comment, datetime, review.rid, rname
+                  FROM 'review' 
+                  JOIN 'reviewer' ON review.rid = reviewer.rid
+                  WHERE datetime BETWEEN (?) and (?)
+                  ORDER BY review.rid ASC
+                  """
+        result_1 = db.execute(query_1, (start, end)).fetchall()
 
-    # get reviews information
-    query_2 = "SELECT accommodation_id, comment, datetime, review.rid, rname " \
-              "FROM 'review' join 'reviewer' on review.rid = reviewer.rid " \
-              "ORDER BY datetime DESC, review.rid ASC"
-    result_2 = db.execute(query_2).fetchall()
+    else:
+        # get reviews information
+        query_1 = "SELECT accommodation_id, comment, datetime, review.rid, rname " \
+                  "FROM 'review' join 'reviewer' on review.rid = reviewer.rid " \
+                  "ORDER BY datetime DESC, review.rid ASC"
+        result_1 = db.execute(query_1).fetchall()
 
     reviews = []
-    for row in result_2:
+    for row in result_1:
         reviews.append({
             "Accommodation ID": row[0],
             "Comment": row[1],
@@ -51,7 +58,7 @@ def get_reviews():
     conn.close()
 
     # store the results in dictionary
-    results = {"Count": count[0][0], "Reviews": reviews}
+    results = {"Count": len(reviews), "Reviews": reviews}
 
     # convert to json format
     j = json.dumps(results)
@@ -61,7 +68,7 @@ def get_reviews():
 
 # (c.1) Get all reviewers
 @app.route('/airbnb/reviewers/', methods=['GET'])
-def get_reviewers():
+def get_all_reviewers():
 
     # create connection
     conn = sqlite3.connect("airbnb.db")
@@ -69,23 +76,45 @@ def get_reviewers():
     # create a cursor object
     db = conn.cursor()
 
-    # get total reviewer count
-    query_1 = "SELECT count(rid) FROM reviewer"
+    if 'sort_by_review_count' in request.args.keys():
+        sort = request.args['sort_by_review_count']
+
+        if sort == "ascending":
+
+            # get reviewers information
+            query_1 = """
+                      SELECT count(review.rid) AS c, review.rid, rname
+                      FROM 'review' 
+                      JOIN 'reviewer' ON review.rid = reviewer.rid
+                      GROUP BY review.rid
+                      ORDER BY c ASC, review.rid ASC
+                      """
+
+        elif sort == "descending":
+
+            # get reviewers information
+            query_1 = """
+                      SELECT count(review.rid) AS c, review.rid, rname
+                      FROM 'review' 
+                      JOIN 'reviewer' ON review.rid = reviewer.rid
+                      GROUP BY review.rid
+                      ORDER BY c DESC, review.rid ASC
+                      """
+
+    else:
+
+        # get reviewers information
+        query_1 = """
+                  SELECT count(review.rid) AS c, review.rid, rname
+                  FROM 'review' 
+                  JOIN 'reviewer' ON review.rid = reviewer.rid
+                  GROUP BY review.rid
+                  ORDER BY review.rid ASC
+                  """
+
     result_1 = db.execute(query_1).fetchall()
-
-    count = []
-    for row in result_1:
-        count.append(row)
-
-    # get reviewers information
-    query_2 = """SELECT count(review.rid), review.rid, rname
-                 FROM 'review' join 'reviewer' on review.rid = reviewer.rid
-                 GROUP BY review.rid
-                 ORDER BY review.rid ASC"""
-    result_2 = db.execute(query_2).fetchall()
-
     reviews = []
-    for row in result_2:
+    for row in result_1:
         reviews.append({
             "Review Count": row[0],
             "Reviewer ID": row[1],
@@ -96,7 +125,7 @@ def get_reviewers():
     conn.close()
 
     # store the results in dictionary
-    results = {"Count": count[0][0], "Reviewers": reviews}
+    results = {"Count": len(reviews), "Reviewers": reviews}
 
     # convert to json format
     j = json.dumps(results)
@@ -162,7 +191,7 @@ def get_reviewer_and_review(rid):
 
 # (d.1) get all hosts
 @app.route('/airbnb/hosts/', methods=['GET'])
-def get_hosts():
+def get_all_hosts():
 
     # create connection
     conn = sqlite3.connect("airbnb.db")
@@ -170,24 +199,49 @@ def get_hosts():
     # create a cursor object
     db = conn.cursor()
 
-    # get host count
-    query_1 = "SELECT count(host_id) FROM host"
-    result_1 = db.execute(query_1).fetchall()
-    all_host = []
-    for row in result_1:
-        all_host.append(row[0])
+    if 'sort_by_accommodation_count' in request.args.keys():
+        sort = request.args['sort_by_accommodation_count']
 
-    # get host information
-    query_2 = """
-    SELECT count(host_accommodation.accommodation_id), host_about, host.host_id, host_location, host_name, host_url
-    FROM 'host_accommodation' 
-    JOIN host ON host_accommodation.host_id = host.host_id
-    group by host.host_id
-    order by host.host_id
-    """
-    result_2 = db.execute(query_2).fetchall()
+        if sort == "ascending":
+
+            # get host information
+            query_1 = """
+                    SELECT count(host_accommodation.accommodation_id) AS c, host_about, host.host_id, host_location, 
+                    host_name, host_url
+                    FROM 'host_accommodation' 
+                    JOIN host ON host_accommodation.host_id = host.host_id
+                    GROUP BY host.host_id
+                    ORDER BY c ASC, host.host_id ASC
+                    """
+
+        elif sort == "descending":
+
+            # get host information
+            query_1 = """
+                    SELECT count(host_accommodation.accommodation_id) AS c, host_about, host.host_id, host_location, 
+                    host_name, host_url
+                    FROM 'host_accommodation' 
+                    JOIN host ON host_accommodation.host_id = host.host_id
+                    GROUP BY host.host_id
+                    ORDER BY c DESC, host.host_id ASC
+                    """
+
+    else:
+
+        # get host information
+        query_1 = """
+                SELECT count(host_accommodation.accommodation_id) AS c, host_about, host.host_id, host_location, 
+                host_name, host_url
+                FROM 'host_accommodation' 
+                JOIN host ON host_accommodation.host_id = host.host_id
+                GROUP BY host.host_id
+                ORDER BY host.host_id ASC
+                """
+
+    result_1 = db.execute(query_1).fetchall()
+
     hosts = []
-    for row in result_2:
+    for row in result_1:
         hosts.append({
             "Accommodation Count": row[0],
             "Host About": row[1],
@@ -201,7 +255,7 @@ def get_hosts():
     conn.close()
 
     # store the results in dictionary
-    results = {"Count": all_host[0],
+    results = {"Count": len(hosts),
                "Hosts": hosts
                }
 
@@ -282,7 +336,7 @@ def get_host_by_id(host_id):
 
 # (e.1) get all accommodation
 @app.route('/airbnb/accommodations/', methods=['GET'])
-def get_accommodation():
+def get_all_accommodation():
 
     # create connection
     conn = sqlite3.connect("airbnb.db")
@@ -290,20 +344,98 @@ def get_accommodation():
     # create a cursor object
     db = conn.cursor()
 
-    # get all accommodation information
-    query_1 = """
-    SELECT name, summary, url, type, host_about, host.host_id, host_location, host_name, accommodation.id, count(), review_score_value 
-    FROM 'accommodation' 
-    join (select accommodation_id, group_concat(type) as type
-    from amenities
-    group by accommodation_id) t on t.accommodation_id = accommodation.id
-    join review on review.accommodation_id = accommodation.id
-    join host_accommodation on host_accommodation.accommodation_id = accommodation.id
-    join host on host_accommodation.host_id = host.host_id
-    group by accommodation.id
-    order by accommodation.id asc
-    """
-    result_1 = db.execute(query_1).fetchall()
+    if 'min_review_score_value' in request.args.keys() and 'amenities' not in request.args.keys():
+        score = request.args['min_review_score_value']
+
+        # get all accommodation information
+        query_1 = """
+                  SELECT name, summary, url, types, host_about, host.host_id, host_location, host_name, t1.id, 
+                  count(), review_score_value
+                  FROM (SELECT * FROM 'accommodation' WHERE review_score_value >= ?) t1
+                  JOIN (SELECT accommodation_id, group_concat(type) AS types
+                  FROM amenities
+                  GROUP BY accommodation_id) t2 ON t2.accommodation_id = t1.id
+                  JOIN review ON review.accommodation_id = t1.id
+                  JOIN host_accommodation ON host_accommodation.accommodation_id = t1.id
+                  JOIN host ON host_accommodation.host_id = host.host_id
+                  GROUP BY t1.id
+                  ORDER BY t1.id ASC
+                  """
+
+        result_1 = db.execute(query_1, [score]).fetchall()
+
+    elif 'amenities' in request.args.keys() and 'min_review_score_value' not in request.args.keys():
+        amenities = request.args['amenities']
+
+        # get all accommodation information
+        query_1 = """
+                  SELECT name, summary, url, types, host_about, host.host_id, host_location, host_name, t1.id, 
+                  count(), review_score_value
+                  FROM 'accommodation' t1
+                  JOIN (
+                  SELECT * FROM(
+                  SELECT accommodation_id, group_concat(type) AS types
+                  FROM amenities
+                  GROUP BY accommodation_id
+                  ) 
+                  WHERE types like (?)
+                  ) t2 ON t2.accommodation_id = t1.id
+                  JOIN review ON review.accommodation_id = t1.id
+                  JOIN host_accommodation ON host_accommodation.accommodation_id = t1.id
+                  JOIN host ON host_accommodation.host_id = host.host_id
+                  GROUP BY t1.id
+                  ORDER BY t1.id ASC
+                  """
+
+        result_1 = db.execute(query_1, ('%{}%'.format(amenities),)).fetchall()
+
+    elif 'amenities' in request.args.keys() and 'min_review_score_value' in request.args.keys():
+        score = request.args['min_review_score_value']
+        amenities = request.args['amenities']
+
+        # get all accommodation information
+        query_1 = """
+                  SELECT name, summary, url, types, host_about, host.host_id, host_location, host_name, t1.id, 
+                  count(), review_score_value
+                  FROM (SELECT * FROM 'accommodation' WHERE review_score_value >= (?)) t1
+                  JOIN (
+                  SELECT * FROM(
+                  SELECT accommodation_id, group_concat(type) AS types
+                  FROM amenities
+                  GROUP BY accommodation_id
+                  ) 
+                  WHERE types like (?)
+                  ) t2 ON t2.accommodation_id = t1.id
+                  JOIN review ON review.accommodation_id = t1.id
+                  JOIN host_accommodation ON host_accommodation.accommodation_id = t1.id
+                  JOIN host ON host_accommodation.host_id = host.host_id
+                  GROUP BY t1.id
+                  ORDER BY t1.id ASC
+                  """
+
+        result_1 = db.execute(query_1,
+                              (score, '%'+amenities+'%')
+                              ).fetchall()
+
+    else:
+
+        # get all accommodation information
+        query_1 = """
+                SELECT name, summary, url, type, host_about, host.host_id, host_location, host_name, accommodation.id, 
+                count(), review_score_value AS score
+                FROM 'accommodation' 
+                JOIN (SELECT accommodation_id, group_concat(type) AS type
+                FROM amenities
+                GROUP BY accommodation_id) t ON t.accommodation_id = accommodation.id
+                JOIN review ON review.accommodation_id = accommodation.id
+                JOIN host_accommodation ON host_accommodation.accommodation_id = accommodation.id
+                JOIN host ON host_accommodation.host_id = host.host_id
+                GROUP BY accommodation.id
+                ORDER BY accommodation.id ASC
+                """
+
+        result_1 = db.execute(query_1).fetchall()
+
     accommodations = []
     for row in result_1:
         accommodations.append({
@@ -324,19 +456,12 @@ def get_accommodation():
             "Review Score Value": row[10]
         })
 
-    # get accommodation count
-    query_2 = """SELECT count(id) FROM accommodation"""
-    result_2 = db.execute(query_2).fetchall()
-    count = []
-    for row in result_2:
-        count.append(row)
-
     # close connection
     conn.close()
 
     # store the results in dictionary
     results = {"Accommodations": accommodations,
-               "Count": count[0][0]
+               "Count": len(accommodations)
                }
 
     # convert to json format
@@ -367,7 +492,7 @@ def get_accommodation_by_id(id):
     SELECT name, type, review_score_value, comment, datetime, rname, reviewer.rid, summary, url
     FROM 'accommodation' 
     join (select accommodation_id, group_concat(type) as type
-    from amenities
+    from (select * from amenities order by type)
     group by accommodation_id) t on t.accommodation_id = accommodation.id
     join review on review.accommodation_id = accommodation.id
     join reviewer on review.rid = reviewer.rid
@@ -388,7 +513,7 @@ def get_accommodation_by_id(id):
         reviews.append({
             "Comment": row[3],
             "Datetime": row[4],
-            "Review Name": row[5],
+            "Reviewer Name": row[5],
             "Reviewer ID": row[6]
         })
         summary.append(row[7])

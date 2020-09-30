@@ -254,7 +254,7 @@ def start():
             # create a table called "reviewer"
             c.execute('''
                         CREATE TABLE reviewer(
-                        rid INTEGER, 
+                        rid INTEGER PRIMARY KEY, 
                         rname TEXT
                         )
                         ''')
