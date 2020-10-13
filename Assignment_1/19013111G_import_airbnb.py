@@ -92,7 +92,7 @@ def start():
                 if i["review_scores"]:
                     review_score_value = i["review_scores"]["review_scores_value"]
                 else:
-                    review_score_value = "NULL"
+                    review_score_value = None
 
                 # insert data into table "accommodation"
                 c.execute("INSERT INTO accommodation (id, name, summary, url, review_score_value)\
