@@ -37,6 +37,32 @@ def get_all_reviews():
                   """
         result_1 = db.execute(query_1, (start, end)).fetchall()
 
+    elif 'start' in request.args.keys() and 'end' not in request.args.keys():
+        start = request.args['start']
+
+        # get reviews information
+        query_1 = """
+                  SELECT accommodation_id, comment, datetime, review.rid, rname
+                  FROM 'review' 
+                  JOIN 'reviewer' ON review.rid = reviewer.rid
+                  WHERE datetime >= (?)
+                  ORDER BY review.rid ASC
+                          """
+        result_1 = db.execute(query_1, [start]).fetchall()
+
+    elif 'start' not in request.args.keys() and 'end' in request.args.keys():
+        end = request.args['end']
+
+        # get reviews information
+        query_1 = """
+                  SELECT accommodation_id, comment, datetime, review.rid, rname
+                  FROM 'review' 
+                  JOIN 'reviewer' ON review.rid = reviewer.rid
+                  WHERE datetime <= (?)
+                  ORDER BY review.rid ASC
+                          """
+        result_1 = db.execute(query_1, [end]).fetchall()
+
     else:
         # get reviews information
         query_1 = "SELECT accommodation_id, comment, datetime, review.rid, rname " \
@@ -174,7 +200,7 @@ def get_reviewer_and_review(rid):
     if int(rid) in all_rid:
 
         # store the results in dictionary
-        results = {"Reviewer ID": rid,
+        results = {"Reviewer ID": int(rid),
                    "Reviewer Name": name[0][0],
                    "Reviews": reviews}
 
